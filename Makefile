@@ -21,7 +21,7 @@ fugue_api_client: swagger.yaml
 .PHONY: environments
 environments: $(VENV_NAME) fugue_api_client
 	$(VENV) && pip install ./fugue_api_client
-	$(VENV) && AWS_PROFILE=$(ADMIN_AWS_PROFILE) python create_environments.py
+	$(VENV) && python create_environments.py
 
 .PHONY: stackset_admin
 stackset_admin:
