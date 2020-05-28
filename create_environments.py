@@ -2,7 +2,7 @@ import json
 import os
 import time
 from typing import List
-from swagger_client import (
+from fugue_api_client import (
     Configuration,
     ApiClient,
     EnvironmentsApi,
