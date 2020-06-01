@@ -22,6 +22,9 @@ FUGUE_API_VERSION = os.environ.get('FUGUE_API_VERSION', 'v0')
 FUGUE_API_ID = os.environ.get('FUGUE_API_ID')
 FUGUE_API_SECRET = os.environ.get('FUGUE_API_SECRET')
 
+# One day in seconds
+ONE_DAY = 86400
+
 
 def initialize_client() -> ApiClient:
     """
@@ -55,7 +58,7 @@ def create_aws_environment(
             survey_resource_types=survey_resource_types,
             compliance_families=compliance_families,
             scan_schedule_enabled=True,
-            scan_interval=2592000,
+            scan_interval=ONE_DAY,
         ))
     assert len(environment.id) > 0
     print(f"environment {environment.id} created")
