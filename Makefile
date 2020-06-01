@@ -1,6 +1,4 @@
 
-REGIONS ?= '["us-east-1"]'
-ADMIN_AWS_PROFILE ?= billing
 VENV_NAME = .orgvenv
 VENV = source $(VENV_NAME)/bin/activate
 AWS = $(VENV) && aws
@@ -10,7 +8,7 @@ $(VENV_NAME):
 	source $(VENV_NAME)/bin/activate && pip install -q awscli
 
 organization.json: $(VENV_NAME)
-	$(VENV) && AWS_PROFILE=$(ADMIN_AWS_PROFILE) python describe_organization.py
+	$(VENV) && python describe_organization.py
 
 swagger.yaml:
 	wget -q https://api-staging.fugue.co/v0/swagger -O swagger.yaml
@@ -26,7 +24,6 @@ environments: $(VENV_NAME) fugue_api_client
 .PHONY: stackset_admin
 stackset_admin:
 	$(AWS) cloudformation deploy \
-		--profile $(ADMIN_AWS_PROFILE) \
 		--template-file stackset-admin.yaml \
 		--stack-name $(ADMIN_STACK_NAME) \
 		--capabilities CAPABILITY_NAMED_IAM \
@@ -34,5 +31,4 @@ stackset_admin:
 
 .PHONY: list_stacksets
 list_stacksets:
-	$(AWS) cloudformation list-stack-sets \
-		--profile $(ADMIN_AWS_PROFILE)
+	$(AWS) cloudformation list-stack-sets

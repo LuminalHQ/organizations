@@ -18,11 +18,11 @@ Run the following to gather account and organizational unit (OU) information
 from an AWS organization:
 
 ```
-ADMIN_AWS_PROFILE=<PROFILE> make organizations.json
+make organizations.json
 ```
 
-Specify the AWS profile name with `ADMIN_AWS_PROFILE`. This profile must have
-credentials with permissions equivalent to `AWSOrganizationsReadOnlyAccess`.
+You must have AWS credentials for your root account active, with permissions
+equivalent to `AWSOrganizationsReadOnlyAccess`.
 
 ## Use Cloudformation Stacksets to provision IAM roles
 
