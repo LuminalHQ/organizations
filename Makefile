@@ -17,7 +17,7 @@ fugue_api_client: swagger.yaml
 	swagger-codegen generate -i ./swagger.yaml -l python -o fugue_api_client
 
 .PHONY: environments
-environments: $(VENV_NAME) fugue_api_client
+environments: $(VENV_NAME)
 	$(VENV) && pip install ./fugue_api_client
 	$(VENV) && python create_environments.py
 
