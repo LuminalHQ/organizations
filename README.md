@@ -44,7 +44,7 @@ python create_stackset.py \
 ```
 
 See [account.yaml](cloudformation/account.yaml) for the CloudFormation template
-used to crete the role in each account.
+used to create the role in each account.
 
 You can specify all OUs with `--ous *`.
 
