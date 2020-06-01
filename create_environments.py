@@ -1,42 +1,39 @@
+# pylint: disable=bad-continuation
+# pylint: disable=bare-except
+import argparse
 import json
 import os
+import sys
 import time
-from typing import List
+from typing import List, Set, Dict
 from fugue_api_client.swagger_client import (
     Configuration,
     ApiClient,
     EnvironmentsApi,
-    ScansApi,
     MetadataApi,
-    CustomRulesApi,
     Environment,
     CreateEnvironmentInput,
     ProviderOptions,
     ProviderOptionsAws,
-    ProviderOptionsAzure,
-    Scan,
 )
 
+FUGUE_API_HOST = os.environ.get('FUGUE_API_HOST', 'api.riskmanager.fugue.co')
+FUGUE_API_VERSION = os.environ.get('FUGUE_API_VERSION', 'v0')
+FUGUE_API_ID = os.environ.get('FUGUE_API_ID')
+FUGUE_API_SECRET = os.environ.get('FUGUE_API_SECRET')
 
-def initialize_client(local: str = "") -> ApiClient:
+
+def initialize_client() -> ApiClient:
+    """
+    Creates a swagger client for the Fugue API using credentials passed via
+    environment variables.
+    """
     c = Configuration()
-    if len(local) > 0:
-        c.host = "http://localhost:5000"
-    else:
-        c.host = 'https://%s/%s' % (os.environ["FUGUE_API_HOST"],
-                                    os.environ.get("FUGUE_API_VERSION", "v0"))
-    c.username = os.environ["FUGUE_API_ID"]
-    c.password = os.environ["FUGUE_API_SECRET"]
+    c.host = f'https://{FUGUE_API_HOST}/{FUGUE_API_VERSION}'
+    c.username = FUGUE_API_ID
+    c.password = FUGUE_API_SECRET
     client = ApiClient(configuration=c)
     return client
-
-
-def environments_api(api_client: ApiClient) -> EnvironmentsApi:
-    return EnvironmentsApi(api_client)
-
-
-def metadata_api(api_client: ApiClient) -> MetadataApi:
-    return MetadataApi(api_client)
 
 
 def create_aws_environment(
@@ -46,6 +43,9 @@ def create_aws_environment(
     compliance_families: List[str] = None,
     survey_resource_types: List[str] = None,
 ) -> Environment:
+    """
+    Create an AWS environment in Fugue with the given settings.
+    """
     aws_provider_opts = ProviderOptionsAws(regions=["*"], role_arn=role_arn)
     environment: Environment = environments_api.create_environment(
         CreateEnvironmentInput(
@@ -67,23 +67,78 @@ def read_json(path):
         return json.loads(f.read())
 
 
-api_client = initialize_client()
-metadata_api: MetadataApi = metadata_api(api_client)
-resource_types = metadata_api.get_resource_types('aws').resource_types
-print(resource_types)
+def filter_accounts(org, chosen_ous: List[str]) -> List[Dict[str, str]]:
+    """
+    Returns a list of account objects that match the specified list of OUs.
+    The OUs list may contain '*' (ALL), OU IDs, or OU names.
+    """
+    ous: Set[str] = set(chosen_ous)
+    if '*' in ous:
+        return org['accounts']
+    result = []
+    for acc in org['accounts']:
+        if acc['ou_name'] in ous:
+            result.append(acc)
+        elif acc['ou_id'] in ous:
+            result.append(acc)
+    return result
 
-env_api: EnvironmentsApi = environments_api(api_client)
 
-role_fmt = 'arn:aws:iam::%s:role/FugueDeveloper0123456789'
-compliance = ['CIS', 'FBP', 'SOC2']
+def main():
+    parser = argparse.ArgumentParser(
+        description='Create environments in Fugue')
+    parser.add_argument('--ous', default=['*'], nargs='+',
+                        help='Organizational units (default: all OUs)')
+    parser.add_argument('--role-name', default='FugueRole',
+                        help='Name of the Fugue role in the AWS accounts')
+    parser.add_argument('--sleep', default=3, type=int,
+                        help='Seconds to sleep between create calls')
+    parser.add_argument('--compliance-families',
+                        default=['CIS', 'FBP'], nargs='+',
+                        help='Compliance families to enable')
+    args = parser.parse_args()
 
-org = read_json('organization.json')
-for i, account in enumerate(org['accounts']):
-    if account['ou_name'] != 'Testing':
-        continue
-    print(i+1, account['account_id'], account['account_name'])
-    role_arn = role_fmt % account['account_id']
-    env = create_aws_environment(env_api, account['account_name'],
-                                 role_arn, compliance,
-                                 survey_resource_types=resource_types)
-    time.sleep(5)
+    if not FUGUE_API_ID:
+        print('FUGUE_API_ID is not set')
+        sys.exit(1)
+
+    if not FUGUE_API_SECRET:
+        print('FUGUE_API_SECRET is not set')
+        sys.exit(1)
+
+    sleep_time = args.sleep if args.sleep >= 1 else 1
+    api_client: ApiClient = initialize_client()
+    metadata_client: MetadataApi = MetadataApi(api_client)
+    resource_types = metadata_client.get_resource_types('aws').resource_types
+    env_api: EnvironmentsApi = EnvironmentsApi(api_client)
+
+    # Account ID will be filled into the ARN later for each account
+    role_fmt = f'arn:aws:iam::%s:role/{args.role_name}'
+
+    try:
+        org = read_json('organization.json')
+    except:
+        print('File organizations.json not found. Refer to the README.')
+        sys.exit(1)
+
+    accounts = filter_accounts(org, args.ous)
+    if not accounts:
+        print('No matching accounts found.')
+        sys.exit(1)
+
+    print('Creating environments for', len(accounts), 'accounts')
+
+    for i, account in enumerate(accounts):
+        print(i + 1, account['account_id'], account['account_name'])
+        role_arn = role_fmt % account['account_id']
+        create_aws_environment(
+            env_api,
+            account['account_name'],
+            role_arn,
+            args.compliance_families,
+            survey_resource_types=resource_types)
+        time.sleep(sleep_time)
+
+
+if __name__ == '__main__':
+    main()
