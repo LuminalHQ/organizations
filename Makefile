@@ -75,3 +75,7 @@ fugue_api_client: swagger.yaml
 .PHONY: list_stacksets
 list_stacksets:
 	$(AWS) cloudformation list-stack-sets
+
+.PHONY: clean
+clean:
+	rm -f role_name organization.json $(STACKSET_MARKER)
