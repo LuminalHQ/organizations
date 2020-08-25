@@ -1,9 +1,10 @@
 
-swagger.yaml
 organization.json
 .mypy_cache
 .vscode
 .orgvenv
+.stackset
+role_name
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
